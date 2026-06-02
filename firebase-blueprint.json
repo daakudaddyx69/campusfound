@@ -1,0 +1,90 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile database representation.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "email", "createdAt"]
+    },
+    "LostItem": {
+      "title": "LostItem",
+      "description": "An item that was lost on campus.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "location": { "type": "string" },
+        "dateLost": { "type": "string" },
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "userName": { "type": "string" },
+        "status": { "type": "string", "enum": ["lost", "resolved"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "description", "category", "location", "dateLost", "userId", "userEmail", "status", "createdAt"]
+    },
+    "FoundItem": {
+      "title": "FoundItem",
+      "description": "An item that was found on campus.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "location": { "type": "string" },
+        "dateFound": { "type": "string" },
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "userName": { "type": "string" },
+        "status": { "type": "string", "enum": ["found", "resolved"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "description", "category", "location", "dateFound", "userId", "userEmail", "status", "createdAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A message between students about a lost or found item.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderEmail": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "itemId": { "type": "string" },
+        "itemTitle": { "type": "string" },
+        "itemType": { "type": "string", "enum": ["lost", "found"] },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "senderName", "senderEmail", "receiverId", "itemId", "itemTitle", "itemType", "text", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/lost_items/{itemId}": {
+      "schema": "LostItem",
+      "description": "Lost items catalog"
+    },
+    "/found_items/{itemId}": {
+      "schema": "FoundItem",
+      "description": "Found items catalog"
+    },
+    "/messages/{messageId}": {
+      "schema": "Message",
+      "description": "User to user communications"
+    }
+  }
+}

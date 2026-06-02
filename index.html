@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CampusFound - Utility Portal</title>
+    <script>
+      try {
+        let fetchVal = window.fetch;
+        Object.defineProperty(window, 'fetch', {
+          get() { return fetchVal; },
+          set(val) { fetchVal = val; },
+          configurable: true,
+          enumerable: true
+        });
+      } catch (e) {
+        console.warn("Failed to protect global fetch writable capability:", e);
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

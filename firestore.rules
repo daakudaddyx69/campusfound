@@ -1,0 +1,157 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- REUSABLE SECURITY PRIMITIVES ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- ENTITY VALIDATION BLUEPRINTS ---
+    
+    function isValidUser(data) {
+      return data.uid is string 
+        && data.uid == request.auth.uid 
+        && data.name is string 
+        && data.name.size() <= 100 
+        && data.email is string 
+        && data.email == request.auth.token.email
+        && data.createdAt is timestamp;
+    }
+
+    function isValidLostItem(data) {
+      return data.title is string 
+        && data.title.size() <= 150 
+        && data.description is string 
+        && data.description.size() <= 2000 
+        && data.category is string 
+        && data.category.size() <= 50 
+        && data.location is string 
+        && data.location.size() <= 150 
+        && data.dateLost is string 
+        && data.dateLost.size() <= 30 
+        && data.userId is string 
+        && data.userId == request.auth.uid 
+        && data.userEmail is string 
+        && data.userEmail == request.auth.token.email
+        && data.status is string
+        && data.status in ["lost", "resolved"]
+        && data.createdAt is timestamp;
+    }
+
+    function isValidFoundItem(data) {
+      return data.title is string 
+        && data.title.size() <= 150 
+        && data.description is string 
+        && data.description.size() <= 2000 
+        && data.category is string 
+        && data.category.size() <= 50 
+        && data.location is string 
+        && data.location.size() <= 150 
+        && data.dateFound is string 
+        && data.dateFound.size() <= 30 
+        && data.userId is string 
+        && data.userId == request.auth.uid 
+        && data.userEmail is string 
+        && data.userEmail == request.auth.token.email
+        && data.status is string
+        && data.status in ["found", "resolved"]
+        && data.createdAt is timestamp;
+    }
+
+    function isValidMessage(data) {
+      return data.senderId is string 
+        && data.senderId == request.auth.uid 
+        && data.senderName is string 
+        && data.senderName.size() <= 100 
+        && data.senderEmail is string 
+        && data.senderEmail == request.auth.token.email
+        && data.receiverId is string 
+        && data.receiverId.size() <= 128 
+        && data.itemId is string 
+        && data.itemId.size() <= 128 
+        && data.itemTitle is string 
+        && data.itemTitle.size() <= 150 
+        && data.itemType is string 
+        && data.itemType in ["lost", "found"] 
+        && data.text is string 
+        && data.text.size() <= 2000
+        && data.createdAt is timestamp;
+    }
+
+    // --- COHESIVE SECURE COLLECTIONS ---
+
+    // Users Collection
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(userId) && userId == request.auth.uid && isValidUser(incoming()) && incoming().createdAt == request.time;
+      allow update: if isSignedIn() && isValidId(userId) && userId == request.auth.uid && isValidUser(incoming()) && incoming().createdAt == existing().createdAt;
+      allow delete: if false;
+    }
+
+    // Lost Items Collection
+    match /lost_items/{itemId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && resource.data.status in ["lost", "resolved"];
+      allow create: if isSignedIn() && isValidId(itemId) && isValidLostItem(incoming()) && incoming().createdAt == request.time;
+      allow update: if isSignedIn() && isValidId(itemId) 
+        && existing().userId == request.auth.uid 
+        && existing().status != "resolved" // Terminal State Locking
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && isValidLostItem(incoming())
+        && (
+          // Action: Mark Resolved
+          (incoming().diff(existing()).affectedKeys().hasOnly(["status"])) ||
+          // Action: Edit fields
+          (incoming().diff(existing()).affectedKeys().hasOnly(["title", "description", "category", "location", "dateLost", "status"]))
+        );
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    // Found Items Collection
+    match /found_items/{itemId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && resource.data.status in ["found", "resolved"];
+      allow create: if isSignedIn() && isValidId(itemId) && isValidFoundItem(incoming()) && incoming().createdAt == request.time;
+      allow update: if isSignedIn() && isValidId(itemId) 
+        && existing().userId == request.auth.uid 
+        && existing().status != "resolved" // Terminal State Locking
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && isValidFoundItem(incoming())
+        && (
+          // Action: Mark Resolved
+          (incoming().diff(existing()).affectedKeys().hasOnly(["status"])) ||
+          // Action: Edit fields
+          (incoming().diff(existing()).affectedKeys().hasOnly(["title", "description", "category", "location", "dateFound", "status"]))
+        );
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    // Messages Collection
+    match /messages/{messageId} {
+      allow get: if isSignedIn() && (resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid);
+      allow list: if isSignedIn() && (resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid);
+      allow create: if isSignedIn() && isValidId(messageId) && isValidMessage(incoming()) && incoming().createdAt == request.time;
+      allow update, delete: if false; // Messages are strictly read-only after sending
+    }
+  }
+}
